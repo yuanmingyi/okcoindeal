@@ -1,0 +1,14 @@
+{
+    "manifest_version": 2,
+    "name": "autodeal.ext",
+    "version": "1.0",
+    "description": "auto deal",
+    "browser_action": {
+        "default_icon": "btc_logo.png",
+        "default_title": "auto deal",
+        "default_popup": "index.html"
+    },
+    "permissions": [
+        "https://www.okcoin.com/"
+    ]
+}
