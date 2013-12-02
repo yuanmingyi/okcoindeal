@@ -1,22 +1,18 @@
 // deal robot
 // import okcoinUtility.js
-(function() {
+(function () {
     var robot = {};
-    var interval = 60000;   // default 60s 
+    var interval = 10000;   // default 10s
     var timer = null;
     var coin = 'ltc';
     var pwd = 'ymy-2008';
     
-    var cnyAvailable = 1000;    
-    var coinAvailable = 0;
-    var entrustTimeout = 20000;
-    
     function updateData(func) {
-        okcoinUtility.getAccountInfo(function(account) {
-            okcoinUtility.getCurrentData(function(current) {
-                okcoinUtility.getMyOpenEntrusts(function(myEntrusts) {
-                    okcoinUtility.getRecentDeals(function(coin, function(recentDeals) {
-                        okcoinUtility.getRecentEntrusts(function(coin, function(buyRecords, sellRecords) {                            
+        okcoinUtility.getAccountInfo(function (account) {
+            okcoinUtility.getCurrentData(function (current) {
+                okcoinUtility.getMyOpenEntrusts(coin, function (myEntrusts) {
+                    okcoinUtility.getRecentDeals(coin, function (recentDeals) {
+                        okcoinUtility.getRecentEntrusts(coin, function (buyRecords, sellRecords) {              
                             func(account, current, myEntrusts, recentDeals, buyRecords, sellRecords);
                         });
                     });
@@ -25,55 +21,134 @@
         });
     }
     
+    var lastWeightedPrice = 0;
+    var curWeightedPrice = 0;
+    var maxPendingTime = 60000;    // 120 seconds
+    var lastEntrust = null;
+    var entrustDiff = 0.005;         // 0.5% if price difference exceed this ratio, action will be taken
+    var volumeRatio = 0.0003;       // 0.03% calculate the weighted price within recent deals which have at least volumeRatio of 24 volume
+    
+    function calcWeightedPrice(recentDeals, volume24) {
+        var weightedPrice = 0, volume = 0, totalPrice = 0, stopVolume = volumeRatio * volume24;
+        for (var i = 0; i < recentDeals.length && volume < stopVolume; i++) {
+            var deal = recentDeals[i];
+            volume += deal.volume;
+            totalPrice += deal.cnyPrice * deal.volume;
+        }        
+        return (volume < stopVolume) ? 0 : totalPrice / volume;
+    }
+    
     function strategy(account, current, myEntrusts, recentDeals, buyRecords, sellRecords) {
-        if (!account || !current) {
+        if (!account || !current || !myEntrusts || !recentDeals) {
             // infomation is not enough
             return;
         }
+        console.info('run strategy');
         
-        var lastPrice = 0;
-        var lastVolume = 0;
-        var entrustDiff = 0.05; // 5%
+        var coinAvailable = account[coin+'Avl'];
+        var cnyAvailable = account['cnyAvl'];
         
-        var curPrice = current[coin+'Last'];
-        var curVolume = current[coin+'Volume'];
-        var hold = false;
+        // calculate current weighted price from recent deals
+        lastWeightedPrice = curWeightedPrice;
+        curWeightedPrice = calcWeightedPrice(recentDeals, current[coin+'Volume']);
+        if (curWeightedPrice === 0) {
+            curWeightedPrice = lastWeightedPrice;
+        }
+        console.info('current weighted price:'+curWeightedPrice);
         
-        if (myEntrusts.length > 0) {
-            
+        if (lastEntrust !== null) {
+            for (var x in myEntrusts) {
+                var entrust = myEntrusts[x];
+                var curTime = new Date();
+                if (Math.abs(entrust.timeStamp.getTime() - lastEntrust.timeStamp.getTime()) < 60000
+                    && Math.abs(entrust.cnyPrice - lastEntrust.cnyPrice) < 0.01
+                    && Math.abs(entrust.entrustVolume - lastEntrust.volume) < 0.001
+                    && entrust.entrustType === lastEntrust.type
+                    && entrust.coin === lastEntrust.coin) {
+                    // make sure the entrust is submit by robot
+                    if ((entrust.cnyPrice < curWeightedPrice && entrust.entrustType === 'buy')
+                        || (entrust.cnyPrice > curWeightedPrice && entrust.entrustType === 'sell')
+                        || (curTime.getTime() - lastEntrust.timeStamp.getTime() > maxPendingTime)) {
+                        okcoinUtility.cancelEntrust(entrust.id, coin, function (data) {
+                            console.info('entrust: '+entrust.id+' withdrawn. cny:'+entrust.cnyPrice+', vol:'+entrust.entrustVolume);
+                        });
+                    } else {
+                        // wait the entrust to be finished
+                        return;
+                    }
+                }
+            }
         }
         
-        // buy if the deal price has rised, and sell if deal price has sinked
-        if (lastPrice === 0) {
-            lastPrice = curPrice;
-        } else {
-            if (!hold && curPrice / lastPrice > 1.05) {
-                // buy in
-                var buyVol = cnyAvailable / curPrice;
-                okcoinUtility.submitEntrust(buyVol, curPrice, pwd, 'buy', coin, function(data) {});
-            } else if (hold && curPrice / lastPrice < 0/95) {
-                // sell out
-                okcoinUtility.submitEntrust(coinAvailable, curPrice, pwd, 'sell', coin, function(data) {});
-            }            
+        // buy if the weighted deal price has rised, and sell if the weighted deal price has sinked
+        if (lastWeightedPrice === 0) {
+            return;
+        }
+        
+        if (curWeightedPrice / lastWeightedPrice > (1 + entrustDiff)) {
+            // buy in
+            var buyPrice = curWeightedPrice + 0.01;
+            var buyVol = cnyAvailable / buyPrice;
+            if (buyVol > 0.1) {
+                okcoinUtility.submitEntrust(buyVol, buyPrice, pwd, 'buy', coin, function(data) {
+                    lastEntrust = {
+                        timeStamp: new Date(),
+                        cnyPrice: buyPrice,
+                        volume: buyVol,
+                        type: 'buy',
+                        coin: coin
+                    };
+                    console.info('buy entrust submit: '+lastEntrust.timeStamp.toString()+', cny:'+buyPrice+', vol:'+buyVol+', coin:'+coin);
+                });
+            }
+        } else if (curWeightedPrice / lastWeightedPrice < (1 - entrustDiff)) {
+            // sell out
+            if (coinAvailable > 0.1) {
+                var sellPrice = curWeightedPrice - 0.01;
+                okcoinUtility.submitEntrust(coinAvailable, sellPrice, pwd, 'sell', coin, function(data) {
+                    lastEntrust = {
+                        timeStamp: new Date(),
+                        cnyPrice: sellPrice,
+                        volume: coinAvailable,
+                        type: 'sell',
+                        coin: coin
+                    };
+                    console.info('sell entrust submit: '+lastEntrust.timeStamp.toString()+', cny:'+sellPrice+', vol:'+coinAvailable+', coin:'+coin);
+                });
+            }
         }
     }
     
-    function dealMethod() {
-        updateData(robot.strategy);
-    }
-    
-    robot.Setup = function() {
+    robot.Setup = function(param) {
+        if (param.interval) {
+            interval = param.interval;
+        }
+        if (param.coin) {
+            coin = param.coin;
+        }
+        if (param.pwd) {
+            pwd = param.pwd;
+        }
+        if (param.entrustDiff) {
+            entrustDiff = param.entrustDiff;
+        }
+        if (param.volumeRatio) {
+            volumeRatio = param.volumeRatio;
+        }
+        if (param.maxPendingTime) {
+            maxPendingTime = param.maxPendingTime;
+        }
     };
     
     robot.strategy = strategy;
     
     robot.Start = function() {
-        timer = setTimeout("dealMethod()", interval);
+        timer = setInterval(updateData, interval, robot.strategy);
     };
     
     robot.Stop = function() {
         if (timer !== null) {
-            clearTimeout(timer);
+            clearInterval(timer);
         }
     };
     
