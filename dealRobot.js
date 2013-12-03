@@ -69,8 +69,9 @@
                     if ((entrust.cnyPrice < curWeightedPrice && entrust.entrustType === 'buy')
                         || (entrust.cnyPrice > curWeightedPrice && entrust.entrustType === 'sell')
                         || (curTime.getTime() - lastEntrust.timeStamp.getTime() > maxPendingTime)) {
+                        var id = entrust.id, cny = entrust.cnyPrice, vol = entrust.entrustVolume;
                         okcoinUtility.cancelEntrust(entrust.id, coin, function (data) {
-                            console.info('entrust: '+entrust.id+' withdrawn. cny:'+entrust.cnyPrice+', vol:'+entrust.entrustVolume);
+                            console.info('entrust: '+id+' withdrawn. cny:'+cny+', vol:'+vol);
                         });
                     } else {
                         // wait the entrust to be finished

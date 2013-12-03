@@ -1,5 +1,6 @@
 // namespace: okcoinUtility
 (function () {
+    var debug = false;
     var baseUrl = "https://www.okcoin.com";
     var symbols = {
         btc: 0,
@@ -50,7 +51,9 @@
     //      volume is a float number representing the volume of the deal
     function getRecentDeals(coin, func) {
         var url = composeRequestUrl("/marketRecentDealRefresh.do?symbol=" + symbols[coin]);
-        console.info("getRecentDeals(coin,func) url:" + url);
+        if (debug) {
+            console.info("getRecentDeals(coin,func) url:" + url);
+        }
         jQuery.get(url, null, function (data) {
             var records = [];
             var trs = jQuery(data).children('tbody').children('tr');
@@ -78,7 +81,9 @@
     //      volume is a float number representing the volume of the entrust
     function getRecentEntrusts(coin, func) {
         var url = composeRequestUrl("/marketEntrustRefresh.do?symbol=" + symbols[coin]);
-        console.info("getRecentEntrusts(coin,func) url:" + url);
+        if (debug) {
+            console.info("getRecentEntrusts(coin,func) url:" + url);
+        }
         var addRecord = function(arr) {
             return function (ind, obj) {
                 var tds = jQuery(obj).children('td');
@@ -121,7 +126,9 @@
     //      6th element is the volume of the timespan    
     function getHistoryData(coin, intvType, func) {
         var url = baseUrl + "/klineData.do?marketFrom=" + (coin === 'btc' ? 0 : 3) + "&type=" + (intvType === 'd' ? 3 : 1);
-        console.info("getHistoryData(coin,intvType,func) url:" + url);
+        if (debug) {
+            console.info("getHistoryData(coin,intvType,func) url:" + url);
+        }
         jQuery.getJSON(url, func);
     }
     
@@ -188,7 +195,9 @@
     // get open entrusts
     function getMyOpenEntrusts(coin, func) {
         var url = baseUrl + "/entrust.do?status=0&symbol=" + symbols[coin];
-        console.info("getMyOpenEntrusts(coin,func) url:" + url);
+        if (debug) {
+            console.info("getMyOpenEntrusts(coin,func) url:" + url);
+        }
         jQuery.get(url, null, function (data) {
             var entrusts = [];
             var trs = jQuery(data).find("td[id^='entrustStatus']").parent('tr');
@@ -197,7 +206,7 @@
                 entrusts.push({
                     id: tds[7].id.slice(13),
                     coin: coin,
-                    timeStamp: Date.parse(tds[0].innerText.trim()),
+                    timeStamp: new Date(tds[0].innerText.trim()),
                     entrustType: (tds[1].innerText.trim() === '卖出' ? 'sell' : 'buy'),
                     entrustVolume: parseFloat(tds[2].innerText.trim().slice(1)),
                     cnyPrice: parseFloat(tds[3].innerText.trim().slice(1)),
