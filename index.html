@@ -10,15 +10,24 @@
         <script type="text/javascript" src="jquery-1.10.2.min.js"></script>
         <script type="text/javascript" src="okcoinUtility.js"></script>
         <script type="text/javascript" src="dealRobot.js"></script>
+        <script type="text/javascript" src="chaodi.js"></script>
         <script type="text/javascript" src="initPage.js"></script>
     </head>
     <body>
         <div><h3>test</h3></div>
         <div><a id="loginLink" href="#">login</a></div>
         <form>
-        <div><span>trade password: </span><input type="password" name="pwd" /></div>        
+        <div><span>monitor interval: </span><input type="text" name="interval" value="10000" /></div>
+        <div><span>coin: </span><input type="text" name="coin" value="ltc" /></div>
+        <div><span>trade password: </span><input type="password" name="pwd" /></div>
+        <div><span>buyPrice: </span><input type="text" name="buyPrice" /></div>
+        <div><span>sellPrice: </span><input type="text" name="sellPrice" /></div>
         <div><input type="button" name="startButton" value="start" /></div>
         <div><input type="button" name="stopButton" value="stop" /></div>
+        <div><input type="button" name="buyAll" value="buyAll" /></div>
+        <div><input type="button" name="sellAll" value="sellAll" /></div>
+        <div><input type="button" name="withdrawAll" value="withdrawAll" /></div>
+        <div><input type="button" name="monitor" value="start monitor" /></div>
         </form>
     </body>
 </html>
