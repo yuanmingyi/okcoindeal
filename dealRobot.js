@@ -2,7 +2,7 @@
 // import okcoinUtility.js
 (function () {
     var robot = {};
-    var interval = 10000;   // default 10s
+    var interval = 5000;   // default 10s
     var timer = null;
     var coin = 'ltc';
     var pwd = 'ymy-2008';
@@ -23,7 +23,7 @@
     
     var lastWeightedPrice = 0;
     var curWeightedPrice = 0;
-    var maxPendingTime = 60000;    // 120 seconds
+    var maxPendingTime = 30000;    // 120 seconds
     var lastEntrust = null;
     var entrustDiff = 0.005;         // 0.5% if price difference exceed this ratio, action will be taken
     var volumeRatio = 0.0003;       // 0.03% calculate the weighted price within recent deals which have at least volumeRatio of 24 volume
