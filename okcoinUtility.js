@@ -173,6 +173,7 @@
                     console.error("Submit entrust failed: your price is too far away from acutal deal price.");
                     break;
                 default:
+                    console.error("Submit entrust failed: unknown reason.");
                     break;
                 }
             }
