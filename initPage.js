@@ -39,7 +39,7 @@
         jQuery(form[name='autoDeal']).on('click', null, null, function() {
             autoDeal = !autoDeal;
             chaodi.setAuto(autoDeal, function() {
-                return {buyPrice: buyPriceInput.value, sellPrice: sellPriceInput.value};
+                return {buyPrice: buyPriceInput.value, sellPrice: sellPriceInput.value, pwd:pwdInput.value, coin:coinInput.value, interval:intervalInput.value};
             });
             this.value = autoDeal ? "stop auto deal" : "start auto deal";
         });
